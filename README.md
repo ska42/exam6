@@ -38,7 +38,7 @@
 			select(fd_max + 1, fd_read, NULL, NULL, NULL);
 			fd = 0;
 			while fd < fd_max + 1
-				if FD_ISSET(fd, fd_read) # FD is in fd_read
+				if FD_ISSET(fd, &fd_read) # FD is in fd_read
 					if fd == sockfd # new client
 						len = sizeof(struct sockaddr_in);
 						new_fd = accept(sockfd, &cli, &len);
@@ -54,7 +54,7 @@
 							while fd2 < fd_max + 1
 								if FD_ISSET(fd2, fd_master) # if fd is in fd_master
 									if fd2 != sockfd && fd2 != fd # if fd not himself
-										send(fd1, buffer, len, 0)
+										send(fd2, buffer, len, 0)
 								fd2++;
 				fd++;
 							
