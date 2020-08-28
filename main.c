@@ -7,15 +7,36 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+typedef struct		s_all
+{
+	int		sockfd;
+	int		fd_max;
+	fd_set	fd_read;
+	fd_set	fd_master;
+}					t_all;
+
+void				send_all(t_all *all, char buffer[], int len, int fd_sender)
+{
+	int fd = 0;
+
+	while (fd < all->fd_max + 1)
+	{
+		if (FD_ISSET(fd, &all->fd_master))
+		{
+			if (fd != all->sockfd && fd != fd_sender) // Don't send to the sender
+				send(fd, buffer, len, 0);
+		}
+		fd++;
+	}
+}
+
 int			main(void)
 {
-	int			sockfd;
+	t_all			all;
 	struct sockaddr_in serv_addr;
-	fd_set			fd_read;
-	fd_set			fd_socket;
 
-	sockfd = socket(PF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0)
+	all.sockfd = socket(PF_INET, SOCK_STREAM, 0);
+	if (all.sockfd < 0)
 	{
 		printf("Socket not successful truc\n");
 		exit(1);
@@ -27,7 +48,7 @@ int			main(void)
 	serv_addr.sin_port = htons(8081);
 	serv_addr.sin_addr.s_addr = htonl(2130706433); //127.0.0.1
 	int ret;
-	ret = bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+	ret = bind(all.sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 	if (ret < 0)
 	{
 		printf("Socket not bind truc\n");
@@ -37,41 +58,40 @@ int			main(void)
 	{
 		printf("Socket bind truc\n");
 	}
-	listen(sockfd, 100);
+	listen(all.sockfd, 100);
 
 	////////// J'AI AJOUTE DES TRUCS ICI
 
-	FD_ZERO(&fd_read);
-	FD_ZERO(&fd_socket);
-	FD_SET(sockfd, &fd_socket);
+	FD_ZERO(&all.fd_read);
+	FD_ZERO(&all.fd_master);
+	FD_SET(all.sockfd, &all.fd_master);
 
-	int fd_max;
-	fd_max = sockfd;
+	all.fd_max = all.sockfd;
 	while (1)
 	{
-		fd_read = fd_socket;
-		printf("BEFORE\n");
-		select(fd_max + 1, &fd_read, NULL, NULL, NULL);
-		printf("AFTER\n");
+		all.fd_read = all.fd_master;
+		select(all.fd_max + 1, &all.fd_read, NULL, NULL, NULL);
 		// READ A THING DOWN THERE
 		int fd = 0;
-		while (fd < fd_max + 1)
+		while (fd < all.fd_max + 1)
 		{
-			if (FD_ISSET(fd, &fd_read))
+			if (FD_ISSET(fd, &all.fd_read))
 			{
 				int fd_client;
 				struct sockaddr_in cli;
 				char buff[4096];
 
-				if (fd == sockfd) // NEW CLIENT
+				if (fd == all.sockfd) // NEW CLIENT
 				{
 					printf("receive\n");
 					socklen_t len = sizeof(cli);
 
-					fd_client = accept(sockfd, (struct sockaddr *)&cli, &len);
-					if (fd_client > fd_max)
-						fd_max = fd_client;
-					FD_SET(fd_client, &fd_socket);
+					fd_client = accept(all.sockfd, (struct sockaddr *)&cli, &len);
+					if (fd_client > all.fd_max)
+						all.fd_max = fd_client;
+					FD_SET(fd_client, &all.fd_master);
+					char welcome[] = "someone has joined\n";
+					send_all(&all, welcome, strlen(welcome), -1);
 				}
 				else // RECV SMTHG
 				{
@@ -79,34 +99,19 @@ int			main(void)
 					if (len_recv <= 0) // ERROR OR NO MSG
 					{
 						close(fd);
-						FD_CLR(fd, &fd_socket);
+						FD_CLR(fd, &all.fd_master);
 					}
 					else // SEND TO ALL CLIENTS
-					{
-						int fd2 = 0;
-						while (fd2 < fd_max + 1)
-						{
-							if (FD_ISSET(fd2, &fd_socket))
-							{
-								if (fd2 != sockfd && fd2 != fd)
-								{
-									send(fd2, buff, len_recv, 0);
-								}
-							}
-							fd2++;
-						}
-					}
+						send_all(&all, buff, len_recv, fd);
 				}
 			}
 			fd++;
 		}
 	}
 
-
-
 	/* RELIQUES DU PASSE
 	bzero(&cli, sizeof(cli));
-	ret = accept(sockfd, (struct sockaddr *)&cli, &len);
+	ret = accept(all.sockfd, (struct sockaddr *)&cli, &len);
 	if (ret < 0)
 	{
 		printf("t'es baisé %s\n", strerror(errno));
