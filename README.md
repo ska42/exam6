@@ -1,4 +1,4 @@
-#HOW TO MAKE IT RLY FAST GOD UR SO GOOD
+# HOW TO MAKE IT RLY FAST GOD UR SO GOOD
 
 - make function write and exit auto
 - make a chained list of clients for setup fd/id and add/remove/search functions by fd to get id
@@ -15,7 +15,7 @@
 - don't forget to bzero things reusing or using or FD_ZERO
 - be the b0ss who deserve exam6 😎
 
-#MOST IMPORTANT THINGS
+# MOST IMPORTANT THINGS
 ```
 	# ALREADY DONE PART
 	main
